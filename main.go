@@ -19,7 +19,7 @@ type place struct {
 	city, state string
 	lat, lon    float64
 	dist        float64
-	from        *place
+	next        *place
 }
 
 func (p *place) readLine(rd *bufio.Reader) error {
@@ -100,7 +100,7 @@ func findPath(all []place, start, end *place) {
 	for i := range all {
 		if &all[i] != start {
 			all[i].dist = fastDist(start, &all[i])
-			all[i].from = start
+			all[i].next = start
 			unvisited = append(unvisited, &all[i])
 		}
 	}
@@ -109,10 +109,22 @@ func findPath(all []place, start, end *place) {
 			d := closest.dist + fastDist(closest, p)
 			if d < p.dist {
 				p.dist = d
-				p.from = closest
+				p.next = closest
 			}
 		}
 	}
+}
+
+func printPath(p1, p2 *place) {
+	fmt.Printf("Start in %s, %s\n", p2.city, p2.state)
+	for from, to := p2, p2.next; to != nil; from, to = to, to.next {
+		if from.city == to.city {
+			fmt.Printf("Travel by wormhole to %s, %s\n", to.city, to.state)
+		} else {
+			fmt.Printf("Fly by crow to %s, %s (%.0f miles)\n", to.city, to.state, dist(from, to))
+		}
+	}
+	fmt.Printf("Total distance was %.0f miles, compared to %.0f miles directly by crow.\n", p2.dist, dist(p1, p2))
 }
 
 func main() {
@@ -131,8 +143,5 @@ func main() {
 	p2 := find(ps, os.Args[2], os.Args[3])
 	p1 := find(ps, os.Args[4], os.Args[5])
 	findPath(ps, p1, p2)
-	for here := p2; here != nil; here = here.from {
-		fmt.Printf("%s, %s\n", here.city, here.state)
-	}
-	fmt.Printf("Total distance was %.0f miles, compared to %.0f miles directly.\n", p2.dist, dist(p1, p2))
+	printPath(p1, p2)
 }
