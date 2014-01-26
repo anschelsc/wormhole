@@ -53,9 +53,6 @@ func (p *place) readLine(rd *bufio.Reader) error {
 }
 
 func dist(p1 *place, p2 *place) float64 {
-	if p1.city == p2.city {
-		return .01
-	}
 	// Copied from http://www.movable-type.co.uk/scripts/latlong.html
 	dLat := p2.lat - p1.lat
 	dLon := p2.lon - p1.lon
@@ -64,6 +61,16 @@ func dist(p1 *place, p2 *place) float64 {
 	a := sinHalfDLat*sinHalfDLat + sinHalfDLon*sinHalfDLon*math.Cos(p1.lat)*math.Cos(p2.lat)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 	return c * EARTH_RADIUS
+}
+
+// Will anyone care if we use equirectangular approximations for the (very short) distances that actually show up here?
+func fastDist(p1 *place, p2 *place) float64 {
+	if p1.city == p2.city {
+		return .01
+	}
+	dx := (p2.lon - p1.lon) * math.Cos((p1.lat+p2.lat)/2)
+	dy := (p2.lat - p1.lat)
+	return math.Sqrt(dx*dx+dy*dy) * EARTH_RADIUS
 }
 
 func find(all []place, city, state string) *place {
@@ -92,14 +99,14 @@ func findPath(all []place, start, end *place) {
 	unvisited := make([]*place, 0, LINES-1)
 	for i := range all {
 		if &all[i] != start {
-			all[i].dist = dist(start, &all[i])
+			all[i].dist = fastDist(start, &all[i])
 			all[i].from = start
 			unvisited = append(unvisited, &all[i])
 		}
 	}
 	for closest := popClosest(&unvisited); closest != end; closest = popClosest(&unvisited) {
 		for _, p := range unvisited {
-			d := closest.dist + dist(closest, p)
+			d := closest.dist + fastDist(closest, p)
 			if d < p.dist {
 				p.dist = d
 				p.from = closest
