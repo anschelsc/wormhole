@@ -68,6 +68,7 @@ func fastDist(p1 *place, p2 *place) float64 {
 	if p1.city == p2.city {
 		return .01
 	}
+	// Copied from http://www.movable-type.co.uk/scripts/latlong.html
 	dx := (p2.lon - p1.lon) * math.Cos((p1.lat+p2.lat)/2)
 	dy := (p2.lat - p1.lat)
 	return math.Sqrt(dx*dx+dy*dy) * EARTH_RADIUS
