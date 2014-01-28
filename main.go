@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"runtime"
 	"strconv"
+	"sync"
 )
 
 const LINES = 24368
@@ -105,14 +107,28 @@ func findPath(all []place, start, end *place) {
 			unvisited = append(unvisited, &all[i])
 		}
 	}
+	nWorkers := runtime.GOMAXPROCS(0)
+	var wg sync.WaitGroup
 	for closest := popClosest(&unvisited); closest != end; closest = popClosest(&unvisited) {
-		for _, p := range unvisited {
-			d := closest.dist + fastDist(closest, p)
-			if d < p.dist {
-				p.dist = d
-				p.next = closest
-			}
+		for i := 0; i < nWorkers; i++ {
+			wg.Add(1)
+			chunksize := len(unvisited)/nWorkers + 1
+			go func(i int) {
+				top := (i+1)*chunksize
+				if top > len(unvisited) {
+					top = len(unvisited)
+				}
+				for _, p := range unvisited[i*chunksize:top] {
+					d := closest.dist + fastDist(closest, p)
+					if d < p.dist {
+						p.dist = d
+						p.next = closest
+					}
+				}
+				wg.Done()
+			}(i)
 		}
+		wg.Wait()
 	}
 }
 
