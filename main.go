@@ -17,7 +17,7 @@ const (
 )
 
 type place struct {
-	city, state string
+	City, State string
 	lat, lon    float64
 }
 
@@ -30,16 +30,16 @@ type placeRef struct {
 func readPlace(rd *bufio.Reader) (*place, error) {
 	p := new(place)
 	var err error
-	p.city, err = rd.ReadString(',')
+	p.City, err = rd.ReadString(',')
 	if err != nil {
 		return p, err
 	}
-	p.city = p.city[1 : len(p.city)-2]
-	p.state, err = rd.ReadString(',')
+	p.City = p.City[1 : len(p.City)-2]
+	p.State, err = rd.ReadString(',')
 	if err != nil {
 		return p, err
 	}
-	p.state = p.state[1 : len(p.state)-2]
+	p.State = p.State[1 : len(p.State)-2]
 	latS, err := rd.ReadString(',')
 	if err != nil {
 		return p, err
@@ -71,7 +71,7 @@ func dist(p1 *place, p2 *place) float64 {
 
 // Will anyone care if we use equirectangular approximations for the (very short) distances that actually show up here?
 func fastDist(p1 *place, p2 *place) float64 {
-	if p1.city == p2.city {
+	if p1.City == p2.City {
 		return .01
 	}
 	// Copied from http://www.movable-type.co.uk/scripts/latlong.html
@@ -82,7 +82,7 @@ func fastDist(p1 *place, p2 *place) float64 {
 
 func find(all []*place, city, state string) *place {
 	for i, p := range all {
-		if p.city == city && p.state == state {
+		if p.City == city && p.State == state {
 			return all[i]
 		}
 	}
@@ -147,13 +147,13 @@ func findPath(all []*place, start, end *place) (startRef, endRef *placeRef) {
 
 func printPath(p1, p2 *placeRef) {
 	path := getPath(p2)
-	fmt.Printf("Start in %s, %s\n", p2.city, p2.state)
+	fmt.Printf("Start in %s, %s\n", p2.City, p2.State)
 	for i := 1; i < len(path); i++ {
 		from, to := path[i-1], path[i]
-		if from.city == to.city {
-			fmt.Printf("Travel by wormhole to %s, %s\n", to.city, to.state)
+		if from.City == to.City {
+			fmt.Printf("Travel by wormhole to %s, %s\n", to.City, to.State)
 		} else {
-			fmt.Printf("Fly by crow to %s, %s (%.0f miles)\n", to.city, to.state, dist(from, to))
+			fmt.Printf("Fly by crow to %s, %s (%.0f miles)\n", to.City, to.State, dist(from, to))
 		}
 	}
 	fmt.Printf("Total distance was %.0f miles, compared to %.0f miles directly by crow.\n", p2.dist, dist(p1.place, p2.place))
