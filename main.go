@@ -20,8 +20,12 @@ const (
 type place struct {
 	city, state string
 	lat, lon    float64
-	dist        float64
-	next        *place
+}
+
+type placeRef struct {
+	*place
+	dist float64
+	next *placeRef
 }
 
 func (p *place) readLine(rd *bufio.Reader) error {
@@ -85,7 +89,7 @@ func find(all []place, city, state string) *place {
 	return nil
 }
 
-func popClosest(ps *[]*place) *place {
+func popClosest(ps *[]*placeRef) *placeRef {
 	closest := 0
 	for i := 1; i < len(*ps); i++ {
 		if (*ps)[i].dist < (*ps)[closest].dist {
@@ -98,28 +102,36 @@ func popClosest(ps *[]*place) *place {
 	return ret
 }
 
-func findPath(all []place, start, end *place) {
-	unvisited := make([]*place, 0, LINES-1)
+func findPath(all []place, start, end *place) (startRef, endRef *placeRef) {
+	unvisited := make([]*placeRef, 0, LINES-1)
+	startRef = &placeRef{place: start, dist: 0, next: nil}
 	for i := range all {
-		if &all[i] != start {
-			all[i].dist = fastDist(start, &all[i])
-			all[i].next = start
-			unvisited = append(unvisited, &all[i])
+		p := &all[i]
+		if p != start {
+			ref := &placeRef{
+				place: p,
+				dist:  fastDist(start, p),
+				next:  startRef,
+			}
+			unvisited = append(unvisited, ref)
+			if p == end {
+				endRef = ref
+			}
 		}
 	}
 	nWorkers := runtime.GOMAXPROCS(0)
 	var wg sync.WaitGroup
-	for closest := popClosest(&unvisited); closest != end; closest = popClosest(&unvisited) {
+	for closest := popClosest(&unvisited); closest.place != end; closest = popClosest(&unvisited) {
 		for i := 0; i < nWorkers; i++ {
 			wg.Add(1)
 			chunksize := len(unvisited)/nWorkers + 1
 			go func(i int) {
-				top := (i+1)*chunksize
+				top := (i + 1) * chunksize
 				if top > len(unvisited) {
 					top = len(unvisited)
 				}
-				for _, p := range unvisited[i*chunksize:top] {
-					d := closest.dist + fastDist(closest, p)
+				for _, p := range unvisited[i*chunksize : top] {
+					d := closest.dist + fastDist(closest.place, p.place)
 					if d < p.dist {
 						p.dist = d
 						p.next = closest
@@ -130,18 +142,19 @@ func findPath(all []place, start, end *place) {
 		}
 		wg.Wait()
 	}
+	return
 }
 
-func printPath(p1, p2 *place) {
+func printPath(p1, p2 *placeRef) {
 	fmt.Printf("Start in %s, %s\n", p2.city, p2.state)
 	for from, to := p2, p2.next; to != nil; from, to = to, to.next {
 		if from.city == to.city {
 			fmt.Printf("Travel by wormhole to %s, %s\n", to.city, to.state)
 		} else {
-			fmt.Printf("Fly by crow to %s, %s (%.0f miles)\n", to.city, to.state, dist(from, to))
+			fmt.Printf("Fly by crow to %s, %s (%.0f miles)\n", to.city, to.state, dist(from.place, to.place))
 		}
 	}
-	fmt.Printf("Total distance was %.0f miles, compared to %.0f miles directly by crow.\n", p2.dist, dist(p1, p2))
+	fmt.Printf("Total distance was %.0f miles, compared to %.0f miles directly by crow.\n", p2.dist, dist(p1.place, p2.place))
 }
 
 func main() {
@@ -159,6 +172,6 @@ func main() {
 	}
 	p2 := find(ps, os.Args[2], os.Args[3])
 	p1 := find(ps, os.Args[4], os.Args[5])
-	findPath(ps, p1, p2)
-	printPath(p1, p2)
+	p1Ref, p2Ref := findPath(ps, p1, p2)
+	printPath(p1Ref, p2Ref)
 }
