@@ -105,6 +105,10 @@ func popClosest(ps *[]*placeRef) *placeRef {
 func findPath(all []*place, start, end *place) (startRef, endRef *placeRef) {
 	unvisited := make([]*placeRef, 0, len(all)-1)
 	startRef = &placeRef{place: start, dist: 0, next: nil}
+	if start == end {
+		endRef = startRef
+		return
+	}
 	for i := range all {
 		p := all[i]
 		if p != start {
