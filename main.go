@@ -146,15 +146,25 @@ func findPath(all []*place, start, end *place) (startRef, endRef *placeRef) {
 }
 
 func printPath(p1, p2 *placeRef) {
+	path := getPath(p2)
 	fmt.Printf("Start in %s, %s\n", p2.city, p2.state)
-	for from, to := p2, p2.next; to != nil; from, to = to, to.next {
+	for i := 1; i < len(path); i++ {
+		from, to := path[i-1], path[i]
 		if from.city == to.city {
 			fmt.Printf("Travel by wormhole to %s, %s\n", to.city, to.state)
 		} else {
-			fmt.Printf("Fly by crow to %s, %s (%.0f miles)\n", to.city, to.state, dist(from.place, to.place))
+			fmt.Printf("Fly by crow to %s, %s (%.0f miles)\n", to.city, to.state, dist(from, to))
 		}
 	}
 	fmt.Printf("Total distance was %.0f miles, compared to %.0f miles directly by crow.\n", p2.dist, dist(p1.place, p2.place))
+}
+
+func getPath(end *placeRef) []*place {
+	path := make([]*place, 0)
+	for p := end; p != nil; p = p.next {
+		path = append(path, p.place)
+	}
+	return path
 }
 
 func main() {
