@@ -3,14 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"runtime"
 	"strconv"
 	"sync"
 )
-
-const LINES = 24368
 
 const (
 	RAD_MULT     = math.Pi / 180
@@ -28,34 +27,35 @@ type placeRef struct {
 	next *placeRef
 }
 
-func (p *place) readLine(rd *bufio.Reader) error {
+func readPlace(rd *bufio.Reader) (*place, error) {
+	p := new(place)
 	var err error
 	p.city, err = rd.ReadString(',')
 	if err != nil {
-		return err
+		return p, err
 	}
 	p.city = p.city[1 : len(p.city)-2]
 	p.state, err = rd.ReadString(',')
 	if err != nil {
-		return err
+		return p, err
 	}
 	p.state = p.state[1 : len(p.state)-2]
 	latS, err := rd.ReadString(',')
 	if err != nil {
-		return err
+		return p, err
 	}
 	p.lat, err = strconv.ParseFloat(latS[:len(latS)-1], 64)
 	if err != nil {
-		return err
+		return p, err
 	}
 	p.lat *= RAD_MULT
 	longS, err := rd.ReadString('\n')
 	if err != nil {
-		return err
+		return p, err
 	}
 	p.lon, err = strconv.ParseFloat(longS[:len(longS)-1], 64)
 	p.lon *= RAD_MULT
-	return err
+	return p, err
 }
 
 func dist(p1 *place, p2 *place) float64 {
@@ -80,10 +80,10 @@ func fastDist(p1 *place, p2 *place) float64 {
 	return math.Sqrt(dx*dx+dy*dy) * EARTH_RADIUS
 }
 
-func find(all []place, city, state string) *place {
+func find(all []*place, city, state string) *place {
 	for i, p := range all {
 		if p.city == city && p.state == state {
-			return &all[i]
+			return all[i]
 		}
 	}
 	return nil
@@ -102,11 +102,11 @@ func popClosest(ps *[]*placeRef) *placeRef {
 	return ret
 }
 
-func findPath(all []place, start, end *place) (startRef, endRef *placeRef) {
-	unvisited := make([]*placeRef, 0, LINES-1)
+func findPath(all []*place, start, end *place) (startRef, endRef *placeRef) {
+	unvisited := make([]*placeRef, 0, len(all)-1)
 	startRef = &placeRef{place: start, dist: 0, next: nil}
 	for i := range all {
-		p := &all[i]
+		p := all[i]
 		if p != start {
 			ref := &placeRef{
 				place: p,
@@ -166,10 +166,20 @@ func main() {
 	}
 	defer file.Close()
 	fbuf := bufio.NewReader(file)
-	ps := make([]place, LINES)
-	for i := range ps {
-		ps[i].readLine(fbuf)
+
+	ps := make([]*place, 0)
+	for {
+		p, err := readPlace(fbuf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		ps = append(ps, p)
 	}
+
 	p2 := find(ps, os.Args[2], os.Args[3])
 	p1 := find(ps, os.Args[4], os.Args[5])
 	p1Ref, p2Ref := findPath(ps, p1, p2)
