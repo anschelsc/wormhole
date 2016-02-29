@@ -171,6 +171,9 @@ func getPath(end *placeRef) []*place {
 }
 
 func handleRoute(w http.ResponseWriter, r *http.Request) {
+	// DON'T PUT THIS IN PRODUCTION
+	// w.Header().Add("Access-Control-Allow-Origin", "*")
+
 	encoder := json.NewEncoder(w)
 	query := r.URL.Query()
 	start := find(query.Get("startCity"), query.Get("startState"))
@@ -223,7 +226,7 @@ func main() {
 		all = append(all, p)
 	}
 
-	http.HandleFunc("/route", handleRoute)
+	http.HandleFunc("/", handleRoute)
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
 		logger.Println(err)
