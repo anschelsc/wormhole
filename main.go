@@ -2,18 +2,31 @@ package main
 
 import (
 	"bufio"
-	"fmt"
+	"encoding/json"
 	"io"
+	"log"
 	"math"
 	"os"
 	"runtime"
 	"strconv"
 	"sync"
+
+	"net/http"
 )
 
 const (
 	RAD_MULT     = math.Pi / 180
 	EARTH_RADIUS = 3956.6 //miles
+)
+
+const (
+	PLACES = "places.csv"
+	LOG = "wormhole.log"
+)
+
+var (
+	all []*place
+	logger *log.Logger
 )
 
 type place struct {
@@ -80,7 +93,7 @@ func fastDist(p1 *place, p2 *place) float64 {
 	return math.Sqrt(dx*dx+dy*dy) * EARTH_RADIUS
 }
 
-func find(all []*place, city, state string) *place {
+func find(city, state string) *place {
 	for i, p := range all {
 		if p.City == city && p.State == state {
 			return all[i]
@@ -102,7 +115,7 @@ func popClosest(ps *[]*placeRef) *placeRef {
 	return ret
 }
 
-func findPath(all []*place, start, end *place) (startRef, endRef *placeRef) {
+func findPath(start, end *place) (startRef, endRef *placeRef) {
 	unvisited := make([]*placeRef, 0, len(all)-1)
 	startRef = &placeRef{place: start, dist: 0, next: nil}
 	if start == end {
@@ -149,20 +162,6 @@ func findPath(all []*place, start, end *place) (startRef, endRef *placeRef) {
 	return
 }
 
-func printPath(p1, p2 *placeRef) {
-	path := getPath(p2)
-	fmt.Printf("Start in %s, %s\n", p2.City, p2.State)
-	for i := 1; i < len(path); i++ {
-		from, to := path[i-1], path[i]
-		if from.City == to.City {
-			fmt.Printf("Travel by wormhole to %s, %s\n", to.City, to.State)
-		} else {
-			fmt.Printf("Fly by crow to %s, %s (%.0f miles)\n", to.City, to.State, dist(from, to))
-		}
-	}
-	fmt.Printf("Total distance was %.0f miles, compared to %.0f miles directly by crow.\n", p2.dist, dist(p1.place, p2.place))
-}
-
 func getPath(end *placeRef) []*place {
 	path := make([]*place, 0)
 	for p := end; p != nil; p = p.next {
@@ -171,31 +170,62 @@ func getPath(end *placeRef) []*place {
 	return path
 }
 
-func main() {
-	filename := os.Args[1]
-	file, err := os.Open(filename)
+func handleRoute(w http.ResponseWriter, r *http.Request) {
+	encoder := json.NewEncoder(w)
+	query := r.URL.Query()
+	start := find(query.Get("startCity"), query.Get("startState"))
+	if start == nil {
+		logger.Println("Bad start")
+		encoder.Encode("Bad start")
+		return
+	}
+	end := find(query.Get("endCity"), query.Get("endState"))
+	if end == nil {
+		logger.Println("Bad end")
+		encoder.Encode("Bad end")
+		return
+	}
+	_, startRef := findPath(end, start)
+	path := getPath(startRef)
+	err := encoder.Encode(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		logger.Println(err)
+		return
+	}
+}
+
+func main() {
+	logFile, err := os.OpenFile(LOG, os.O_APPEND | os.O_CREATE | os.O_WRONLY, 0666)
+	if err != nil {
+		panic(err)
+	}
+	defer logFile.Close()
+	logger = log.New(logFile, "", log.Ldate | log.Ltime | log.Lshortfile | log.LUTC)
+
+	file, err := os.Open(PLACES)
+	if err != nil {
+		logger.Println(os.Stderr, err)
 		return
 	}
 	defer file.Close()
 	fbuf := bufio.NewReader(file)
 
-	ps := make([]*place, 0)
+	all = make([]*place, 0)
 	for {
 		p, err := readPlace(fbuf)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			logger.Println(os.Stderr, err)
 			return
 		}
-		ps = append(ps, p)
+		all = append(all, p)
 	}
 
-	p2 := find(ps, os.Args[2], os.Args[3])
-	p1 := find(ps, os.Args[4], os.Args[5])
-	p1Ref, p2Ref := findPath(ps, p1, p2)
-	printPath(p1Ref, p2Ref)
+	http.HandleFunc("/route", handleRoute)
+	err = http.ListenAndServe(":8080", nil)
+	if err != nil {
+		logger.Println(err)
+	}
 }
