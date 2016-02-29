@@ -2,9 +2,9 @@ $("#route").click(function() {
 	$("#loading").css("display", "block");
 	$("#result").html("")
 	var cities = {
-		startCity: $("#startCity").val().toUpperCase(),
+		startCity: $("#startCity").val().trim().toUpperCase(),
 		startState: $("#startState").val(),
-		endCity: $("#endCity").val().toUpperCase(),
+		endCity: $("#endCity").val().trim().toUpperCase(),
 		endState: $("#endState").val()
 	};
 	$.get("http://localhost:8080/route/", cities, function(result) {
