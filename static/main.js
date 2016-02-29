@@ -7,7 +7,7 @@ $("#route").click(function() {
 		endCity: $("#endCity").val().toUpperCase(),
 		endState: $("#endState").val()
 	};
-	$.get("http://localhost:8080/route/", cities, function(result) {
+	$.get("/route/", cities, function(result) {
 		$("#loading").css("display", "none");
 		if (result === "Bad start") {
 			$("#result").text("Unknown start city.");
