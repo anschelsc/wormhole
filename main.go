@@ -172,7 +172,7 @@ func getPath(end *placeRef) []*place {
 
 func handleRoute(w http.ResponseWriter, r *http.Request) {
 	// DON'T PUT THIS IN PRODUCTION
-	// w.Header().Add("Access-Control-Allow-Origin", "*")
+	w.Header().Add("Access-Control-Allow-Origin", "*")
 
 	encoder := json.NewEncoder(w)
 	query := r.URL.Query()
