@@ -171,6 +171,7 @@ func getPath(end *placeRef) []*place {
 }
 
 func handleRoute(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Cache-Control", "max-age: 86400")
 	encoder := json.NewEncoder(w)
 	query := r.URL.Query()
 	start := find(query.Get("startCity"), query.Get("startState"))
