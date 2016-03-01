@@ -174,6 +174,7 @@ func handleRoute(w http.ResponseWriter, r *http.Request) {
 	// DON'T PUT THIS IN PRODUCTION
 	w.Header().Add("Access-Control-Allow-Origin", "*")
 
+	w.Header().Add("Cache-Control", "max-age: 86400")
 	encoder := json.NewEncoder(w)
 	query := r.URL.Query()
 	start := find(query.Get("startCity"), query.Get("startState"))
